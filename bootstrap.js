@@ -3,9 +3,41 @@ const {classes:Cc, interfaces:Ci, utils:Cu} = Components;
 Cu.import('resource://gre/modules/Services.jsm');
 const certdb = Cc['@mozilla.org/security/x509certdb;1']
                   .getService(Ci.nsIX509CertDB);
+const log = function(msg) Services.console.logStringMessage(msg);
 
-function startup(data, reason) {}
-function shutdown(data, reason) {}
+var certObserver = {
+  observe: function(subject, topic, data) {
+    let httpChannel = subject.QueryInterface(Ci.nsIHttpChannel);
+    if (!(httpChannel.loadFlags & Ci.nsIChannel.LOAD_INITIAL_DOCUMENT_URI)) {
+      return;
+    }
+
+    let uri = httpChannel.URI.asciiSpec;
+    let securityInfo = httpChannel.securityInfo;
+    if (securityInfo === null) {
+      return;
+    }
+
+    let serverCert =
+      securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus
+                  .QueryInterface(Ci.nsISSLStatus).serverCert;
+    while (serverCert.issuer && !serverCert.issuer.equals(serverCert)) {
+      if (serverCert.nickname.indexOf('CNNIC') > -1) {
+        //log('542689: ' + uri + ' uses CNNIC cert');
+        Services.prompt.alert(null, 'Bug 542689:', uri + ' uses CNNIC cert');
+        break;
+      }
+      serverCert = serverCert.issuer;
+    }
+  }
+};
+
+function startup(data, reason) {
+  Services.obs.addObserver(certObserver, 'http-on-examine-response', false);
+}
+function shutdown(data, reason) {
+  Services.obs.removeObserver(certObserver, 'http-on-examine-response');
+}
 function install(data, reason) {
   let certNicks = {};
   certdb.findCertNicknames(null, Ci.nsIX509Cert.CA_CERT, {}, certNicks);
@@ -32,14 +64,15 @@ function install(data, reason) {
                         ? Ci.nsIX509CertDB.TRUSTED_OBJSIGN
                         : Ci.nsIX509CertDB.UNTRUSTED);
       if (certOrig != Ci.nsIX509CertDB.UNTRUSTED) {
+        log('542689: distrust ' + cert.nickname);
         prefBranch.setIntPref(cert.dbKey, certOrig);
         certdb.setCertTrust(cert, Ci.nsIX509Cert.CA_CERT,
           Ci.nsIX509CertDB.UNTRUSTED);
       } else {
-        Services.console.logStringMessage('542689: ' + certNick + ' untrusted');
+        log('542689: ' + cert.nickname + ' already untrusted');
       }
     } catch(e) {
-      Services.console.logStringMessage('542689: ' + certNick + ' ' + e);
+      log('542689: ' + certNick + ' ' + e);
     }
   }
 }
@@ -50,6 +83,7 @@ function uninstall(data, reason) {
     let dbKey = dbKeys[i];
     if (prefBranch.prefHasUserValue(dbKey)) {
       let cert = certdb.findCertByDBKey(dbKey, null);
+      log('542689: resume trust of ' + cert.nickname);
       certdb.setCertTrust(cert, Ci.nsIX509Cert.CA_CERT,
         prefBranch.getIntPref(dbKey));
     }
