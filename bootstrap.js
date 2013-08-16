@@ -5,6 +5,9 @@ const certdb = Cc['@mozilla.org/security/x509certdb;1']
                   .getService(Ci.nsIX509CertDB);
 const log = function(msg) Services.console.logStringMessage(msg);
 
+const CNNICAbbr = 'CNNIC';
+const CNNICFull = 'China Internet Network Information Center';
+
 var certObserver = {
   observe: function(subject, topic, data) {
     let httpChannel = subject.QueryInterface(Ci.nsIHttpChannel);
@@ -22,7 +25,8 @@ var certObserver = {
       securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus
                   .QueryInterface(Ci.nsISSLStatus).serverCert;
     while (serverCert.issuer && !serverCert.issuer.equals(serverCert)) {
-      if (serverCert.nickname.indexOf('CNNIC') > -1) {
+      if (serverCert.nickname.indexOf(CNNICAbbr) > -1 ||
+          serverCert.nickname.indexOf(CNNICFull) > -1) {
         //log('542689: ' + uri + ' uses CNNIC cert');
         Services.prompt.alert(null, 'Bug 542689:', uri + ' uses CNNIC cert');
         break;
@@ -44,7 +48,8 @@ function install(data, reason) {
   certNicks = certNicks.value;
   let prefBranch = Services.prefs.getBranch('extensions.bug542689.');
   for (var i = 0, l = certNicks.length; i < l; i++) {
-    if (certNicks[i].indexOf('CNNIC') == -1) {
+    if (certNicks[i].indexOf(CNNICAbbr) == -1 &&
+        certNicks[i].indexOf(CNNICFull) == -1) {
       continue;
     }
     let certNick = certNicks[i].split(/\x01/);
