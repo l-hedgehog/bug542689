@@ -7,6 +7,8 @@ const log = function(msg) Services.console.logStringMessage(msg);
 
 const CNNICAbbr = 'CNNIC';
 const CNNICFull = 'China Internet Network Information Center';
+const WoSign = 'WoSign';
+const Nicknames = [CNNICAbbr, CNNICFull, WoSign];
 
 var certObserver = {
   observe: function(subject, topic, data) {
@@ -25,10 +27,10 @@ var certObserver = {
       securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus
                   .QueryInterface(Ci.nsISSLStatus).serverCert;
     while (serverCert.issuer && !serverCert.issuer.equals(serverCert)) {
-      if (serverCert.nickname.indexOf(CNNICAbbr) > -1 ||
-          serverCert.nickname.indexOf(CNNICFull) > -1) {
-        //log('542689: ' + uri + ' uses CNNIC cert');
-        Services.prompt.alert(null, 'Bug 542689:', uri + ' uses CNNIC cert');
+      if (Nicknames.some(function(aNickname) {
+        return serverCert.nickname.contains(aNickname);
+      })) {
+        Services.prompt.alert(null, 'Bug 542689:', uri + ' with root in CN');
         break;
       }
       serverCert = serverCert.issuer;
@@ -48,8 +50,9 @@ function install(data, reason) {
   certNicks = certNicks.value;
   let prefBranch = Services.prefs.getBranch('extensions.bug542689.');
   for (var i = 0, l = certNicks.length; i < l; i++) {
-    if (certNicks[i].indexOf(CNNICAbbr) == -1 &&
-        certNicks[i].indexOf(CNNICFull) == -1) {
+    if (!Nicknames.some(function(aNickname) {
+      return certNicks[i].contains(aNickname);
+    })) {
       continue;
     }
     let certNick = certNicks[i].split(/\x01/);
