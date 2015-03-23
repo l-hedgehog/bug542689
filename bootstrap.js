@@ -5,10 +5,11 @@ const certdb = Cc['@mozilla.org/security/x509certdb;1']
                   .getService(Ci.nsIX509CertDB);
 const log = function(msg) Services.console.logStringMessage(msg);
 
+const CFCAAbbr = 'CFCA';
 const CNNICAbbr = 'CNNIC';
 const CNNICFull = 'China Internet Network Information Center';
 const WoSign = 'WoSign';
-const Nicknames = [CNNICAbbr, CNNICFull, WoSign];
+const Nicknames = [CFCAAbbr, CNNICAbbr, CNNICFull, WoSign];
 
 var certObserver = {
   observe: function(subject, topic, data) {
@@ -35,6 +36,7 @@ var certObserver = {
       }
       serverCert = serverCert.issuer;
     }
+    // log('542689: ' + serverCert.nickname + ' for ' + uri);
   }
 };
 

@@ -5,7 +5,7 @@
     <type>2</type>
     <bootstrap>true</bootstrap>
     <name>Bug 542689</name>
-    <version>0.3</version>
+    <version>0.4</version>
     <creator>L-Hedgehog</creator>
     <homepageURL>https://bugzil.la/542689</homepageURL>
     <description>Distrust CA cert from CNNIC</description>
